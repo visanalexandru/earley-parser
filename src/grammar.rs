@@ -70,6 +70,7 @@ impl<'a> Grammar<'a> {
 
         // Then build the rules.
         for (line_num, line) in lines.enumerate() {
+            let line = line.trim();
             if !rule_regex.is_match(&line) {
                 return Err(ParseError::InvalidRule { line_num });
             }
