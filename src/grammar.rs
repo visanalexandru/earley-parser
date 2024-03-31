@@ -1,8 +1,9 @@
 use regex::Regex;
 use std::collections::HashMap;
+use std::fmt;
 use std::io;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 struct NonTerminal<'a> {
     name: &'a str,
 }
@@ -12,29 +13,30 @@ struct Terminal<'a> {
     name: &'a str,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 enum Token<'a> {
     NT(NonTerminal<'a>),
     T(Terminal<'a>),
 }
 
-#[derive(Debug)]
 struct Rule<'a> {
     from: NonTerminal<'a>,
     to: Vec<Token<'a>>,
 }
 
-#[derive(Debug)]
 pub struct Grammar<'a> {
-    non_terminals: HashMap<&'a str, NonTerminal<'a>>,
+    nonterminals: HashMap<&'a str, NonTerminal<'a>>,
     terminals: HashMap<&'a str, Terminal<'a>>,
     rules: Vec<Rule<'a>>,
+    start: NonTerminal<'a>,
 }
 
 #[derive(Debug)]
 pub enum ParseError {
     IoError(io::Error),
-    InvalidRule,
+    InvalidRule { line_num: usize },
+    MissingStart,
+    InvalidStart,
 }
 
 impl From<io::Error> for ParseError {
@@ -48,57 +50,114 @@ const NONTERMINAL_REGEX: &'static str = r"^[A-Z]+$";
 const RULE_REGEX: &'static str = r"^([A-Z]+)\s+->(\s+([A-Z]+|[a-z+\-\*0-9]))*$";
 
 impl<'a> Grammar<'a> {
-    fn is_terminal(s: &str) -> bool {
-        Regex::new(TERMINAL_REGEX).unwrap().is_match(s)
-    }
-    fn is_nonterminal(s: &str) -> bool {
-        Regex::new(NONTERMINAL_REGEX).unwrap().is_match(s)
-    }
-
     pub fn from_rules(grammar: &'a str) -> Result<Self, ParseError> {
         let rule_regex = Regex::new(RULE_REGEX).unwrap();
+        let terminal_regex = Regex::new(TERMINAL_REGEX).unwrap();
+        let nonterminal_regex = Regex::new(NONTERMINAL_REGEX).unwrap();
 
         let mut terminals = HashMap::new();
-        let mut non_terminals = HashMap::new();
+        let mut nonterminals = HashMap::new();
         let mut rules = Vec::new();
 
-        for line in grammar.lines() {
-            let line = line.trim();
-            if !rule_regex.is_match(&line) {
-                return Err(ParseError::InvalidRule);
-            }
+        // Read the first line to get the start nonterminal.
+        let mut lines = grammar.lines();
+        let first_line = lines.next().ok_or(ParseError::MissingStart)?.trim();
+        if !nonterminal_regex.is_match(first_line) {
+            return Err(ParseError::InvalidStart);
+        }
+        let start = NonTerminal { name: first_line };
+        nonterminals.insert(first_line, start);
 
+        // Then build the rules.
+        for (line_num, line) in lines.enumerate() {
+            if !rule_regex.is_match(&line) {
+                return Err(ParseError::InvalidRule { line_num });
+            }
             let words: Vec<&str> = line.split_whitespace().collect();
 
-            // Insert all new terminal and nonterminals into the grammar.
-            for &word in words.iter() {
-                if Grammar::is_terminal(word) {
-                    terminals.entry(word).or_insert(Terminal { name: word });
-                } else if Grammar::is_nonterminal(word) {
-                    non_terminals
-                        .entry(word)
-                        .or_insert(NonTerminal { name: word });
-                }
-            }
+            // Build the rule by iterating over the words.
+            // Create nonterminals/terminals while doing so.
+            let word = words[0];
+            let from = NonTerminal { name: word };
+            nonterminals.entry(word).or_insert(from);
 
-            // Create the rule.
-            let from = *non_terminals.get(words[0]).unwrap();
             let mut to = Vec::new();
-
             for &word in &words[2..] {
-                if Grammar::is_terminal(word) {
-                    to.push(Token::T(*terminals.get(word).unwrap()));
+                if terminal_regex.is_match(word) {
+                    let terminal = Terminal { name: word };
+                    terminals.entry(word).or_insert(terminal);
+                    to.push(Token::T(terminal));
                 } else {
-                    to.push(Token::NT(*non_terminals.get(word).unwrap()));
+                    let nonterminal = NonTerminal { name: word };
+                    nonterminals.entry(word).or_insert(nonterminal);
+                    to.push(Token::NT(nonterminal));
                 }
             }
             rules.push(Rule { from, to });
         }
 
         Ok(Grammar {
-            non_terminals,
+            nonterminals,
             terminals,
             rules,
+            start,
         })
+    }
+}
+
+impl fmt::Display for NonTerminal<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
+impl fmt::Display for Terminal<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
+impl fmt::Display for Token<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Token::NT(x) => write!(f, "{}", x),
+            Token::T(x) => write!(f, "{}", x),
+        }
+    }
+}
+
+impl fmt::Display for Rule<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} -> ", self.from)?;
+        for token in self.to.iter() {
+            write!(f, "{} ", token)?
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for Grammar<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Nonterminals: ")?;
+        for (_, v) in self.nonterminals.iter() {
+            write!(f, "{}, ", v)?;
+        }
+        writeln!(f)?;
+
+        write!(f, "Terminals: ")?;
+        for (_, v) in self.terminals.iter() {
+            write!(f, "{}, ", v)?;
+        }
+
+        writeln!(f)?;
+        writeln!(f, "Rules: ")?;
+
+        for r in self.rules.iter() {
+            writeln!(f, "{}", r)?;
+        }
+
+        write!(f, "Start: {}", self.start)?;
+
+        Ok(())
     }
 }
