@@ -19,11 +19,14 @@ enum Token<'a> {
     T(Terminal<'a>),
 }
 
+/// A production rule is a pair (from, to) where from is a nonterminal
+/// and to is a string of terminals/nonterminals.
 struct Rule<'a> {
     from: NonTerminal<'a>,
     to: Vec<Token<'a>>,
 }
 
+/// A context free grammar.
 pub struct Grammar<'a> {
     nonterminals: HashMap<&'a str, NonTerminal<'a>>,
     terminals: HashMap<&'a str, Terminal<'a>>,
@@ -45,11 +48,12 @@ impl From<io::Error> for ParseError {
     }
 }
 
-const TERMINAL_REGEX: &'static str = r"^[a-z+\-\*0-9]$";
+const TERMINAL_REGEX: &'static str = r"^[a-z+\-\*0-9\(\)]$";
 const NONTERMINAL_REGEX: &'static str = r"^[A-Z]+$";
-const RULE_REGEX: &'static str = r"^([A-Z]+)\s+->(\s+([A-Z]+|[a-z+\-\*0-9]))*$";
+const RULE_REGEX: &'static str = r"^([A-Z]+)\s+->(\s+([A-Z]+|[a-z+\-\*0-9\(\)]))*$";
 
 impl<'a> Grammar<'a> {
+    /// Reads the grammar rules and constructs the grammar.
     pub fn from_rules(grammar: &'a str) -> Result<Self, ParseError> {
         let rule_regex = Regex::new(RULE_REGEX).unwrap();
         let terminal_regex = Regex::new(TERMINAL_REGEX).unwrap();
