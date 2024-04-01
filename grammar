@@ -1,0 +1,15 @@
+EXP
+EXP -> ( EXP )
+EXP -> EXP + EXP
+EXP -> EXP * EXP
+EXP -> NUM 
+NUM -> NUM 0
+NUM -> NUM 1 
+NUM -> NUM 2 
+NUM -> NUM 3 
+NUM -> NUM 4 
+NUM -> NUM 5 
+NUM -> NUM 6 
+NUM -> NUM 7 
+NUM -> NUM 8 
+NUM -> NUM 9 
