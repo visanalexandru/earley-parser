@@ -1,3 +1,4 @@
+use const_format;
 use regex::Regex;
 use std::collections::HashMap;
 use std::fmt;
@@ -51,9 +52,14 @@ impl From<io::Error> for ParseError {
     }
 }
 
-const TERMINAL_REGEX: &'static str = r"^[a-z+\-\*0-9\(\)\/]$";
-const NONTERMINAL_REGEX: &'static str = r"^[A-Z]+$";
-const RULE_REGEX: &'static str = r"^([A-Z]+)\s+->(\s+([A-Z]+|[a-z+\-\*0-9\(\)\/]))*$";
+const TERMINAL_REGEX: &'static str = r"[a-z+\-\*0-9\(\)\\\/]";
+const NONTERMINAL_REGEX: &'static str = r"[A-Z]+";
+const RULE_REGEX: &'static str = const_format::formatcp!(
+    r"^{}\s+->(\s+({}|{}))*$",
+    NONTERMINAL_REGEX,
+    NONTERMINAL_REGEX,
+    TERMINAL_REGEX
+);
 
 impl<'a> Grammar<'a> {
     /// Reads the grammar rules and constructs the grammar.
