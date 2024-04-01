@@ -51,9 +51,9 @@ impl From<io::Error> for ParseError {
     }
 }
 
-const TERMINAL_REGEX: &'static str = r"^[a-z+\-\*0-9\(\)]$";
+const TERMINAL_REGEX: &'static str = r"^[a-z+\-\*0-9\(\)\/]$";
 const NONTERMINAL_REGEX: &'static str = r"^[A-Z]+$";
-const RULE_REGEX: &'static str = r"^([A-Z]+)\s+->(\s+([A-Z]+|[a-z+\-\*0-9\(\)]))*$";
+const RULE_REGEX: &'static str = r"^([A-Z]+)\s+->(\s+([A-Z]+|[a-z+\-\*0-9\(\)\/]))*$";
 
 impl<'a> Grammar<'a> {
     /// Reads the grammar rules and constructs the grammar.
