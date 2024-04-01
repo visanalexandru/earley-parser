@@ -6,5 +6,5 @@ fn main() {
     let grammar = Grammar::from_rules(&rules).unwrap();
     println!("{}", grammar);
     println!();
-    grammar.parse("2+3*4");
+    grammar.parse("n+n*n");
 }

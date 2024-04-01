@@ -21,6 +21,10 @@ impl<'a> EarleyState<'a> {
     fn is_finished(&self) -> bool {
         self.dot == self.rule.to.len()
     }
+
+    fn current_token(&self) -> Token<'a> {
+        self.rule.to[self.dot]
+    }
 }
 
 /// The early table has k+1 sets, where k is the length
@@ -49,8 +53,7 @@ impl<'a> Grammar<'a> {
                 continue;
             }
 
-            let dot = state.dot;
-            let current_token = state.rule.to[dot];
+            let current_token = state.current_token();
 
             let nonterminal = match current_token {
                 Token::T(_) => continue,
@@ -59,8 +62,7 @@ impl<'a> Grammar<'a> {
 
             for rule in self.rules.iter() {
                 if rule.from == nonterminal {
-                    let new_state = EarleyState::new(rule.clone(), 0, k);
-                    to_add.push(new_state);
+                    to_add.push(EarleyState::new(rule.clone(), 0, k));
                 }
             }
         }
@@ -78,8 +80,7 @@ impl<'a> Grammar<'a> {
                 continue;
             }
 
-            let dot = state.dot;
-            let current_token = state.rule.to[dot];
+            let current_token = state.current_token();
 
             let terminal = match current_token {
                 Token::NT(_) => continue,
@@ -90,13 +91,53 @@ impl<'a> Grammar<'a> {
                 continue;
             }
 
-            let new_state = EarleyState::new(state.rule.clone(), state.dot + 1, state.origin);
-
-            to_add.push(new_state);
+            to_add.push(EarleyState::new(
+                state.rule.clone(),
+                state.dot + 1,
+                state.origin,
+            ));
         }
 
         for state in to_add {
             early_table.sets[k + 1].insert(state);
+        }
+    }
+
+    fn complete(&self, early_table: &mut EarleyTable<'a>, k: usize) {
+        let mut to_add = Vec::new();
+
+        for state in early_table.sets[k].iter() {
+            // We only look at finished states.
+            if !state.is_finished() {
+                continue;
+            }
+
+            let current_nonterminal = state.rule.from;
+            let origin = state.origin;
+
+            for old_state in early_table.sets[origin].iter() {
+                // Find old states that are waiting for the current_nonterminal to be matched.
+                if old_state.is_finished() {
+                    continue;
+                }
+
+                let current_token = old_state.current_token();
+                let nonterminal = match current_token {
+                    Token::T(_) => continue,
+                    Token::NT(n) => n,
+                };
+
+                if nonterminal == current_nonterminal {
+                    to_add.push(EarleyState::new(
+                        old_state.rule.clone(),
+                        old_state.dot + 1,
+                        old_state.origin,
+                    ));
+                }
+            }
+        }
+        for state in to_add {
+            early_table.sets[k].insert(state);
         }
     }
 
@@ -122,12 +163,25 @@ impl<'a> Grammar<'a> {
                 let old_size = table.sets[position].len();
                 self.prediction(&mut table, position);
                 self.scan(&mut table, position, c);
+                self.complete(&mut table, position);
 
                 if table.sets[position].len() == old_size {
                     break;
                 }
             }
         }
+
+        let last = s.len();
+        loop {
+            let old_size = table.sets[last].len();
+            self.prediction(&mut table, last);
+            self.complete(&mut table, last);
+
+            if table.sets[last].len() == old_size {
+                break;
+            }
+        }
+
         println!("Early table:");
         println!("{}", table);
     }
