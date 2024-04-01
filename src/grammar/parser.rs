@@ -182,7 +182,7 @@ impl<'a> Grammar<'a> {
             }
         }
 
-        println!("Early table:");
+        println!("Earley table:");
         println!("{}", table);
     }
 }
