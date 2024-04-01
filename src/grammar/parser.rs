@@ -12,6 +12,17 @@ struct EarleyState<'a> {
     origin: usize,
 }
 
+impl<'a> EarleyState<'a> {
+    fn new(rule: Rule<'a>, dot: usize, origin: usize) -> Self {
+        EarleyState { rule, dot, origin }
+    }
+
+    /// A state is finished if the dot is at the end of the production.
+    fn is_finished(&self) -> bool {
+        self.dot == self.rule.to.len()
+    }
+}
+
 /// The early table has k+1 sets, where k is the length
 /// of the word to recognize.
 /// Each set i holds the states at position i.
@@ -30,35 +41,65 @@ impl<'a> EarleyTable<'a> {
 }
 
 impl<'a> Grammar<'a> {
-    fn prediction(&self, early_table: &mut EarleyTable<'a>, position: usize) {
-        loop {
-            let mut to_add = Vec::new();
-            for state in early_table.sets[position].iter() {
-                let dot = state.dot;
-                let current_token = state.rule.to[dot];
+    /// For each state
+    fn prediction(&self, early_table: &mut EarleyTable<'a>, k: usize) {
+        let mut to_add = Vec::new();
+        for state in early_table.sets[k].iter() {
+            if state.is_finished() {
+                continue;
+            }
 
-                if let Token::NT(nonterminal) = current_token {
-                    for rule in self.rules.iter() {
-                        if rule.from == nonterminal {
-                            let new_state = EarleyState {
-                                rule: rule.clone(),
-                                dot: 0,
-                                origin: position,
-                            };
-                            to_add.push(new_state);
-                        }
-                    }
+            let dot = state.dot;
+            let current_token = state.rule.to[dot];
+
+            let nonterminal = match current_token {
+                Token::T(_) => continue,
+                Token::NT(n) => n,
+            };
+
+            for rule in self.rules.iter() {
+                if rule.from == nonterminal {
+                    let new_state = EarleyState::new(rule.clone(), 0, k);
+                    to_add.push(new_state);
                 }
             }
-            let old_size = early_table.sets[position].len();
-            for state in to_add {
-                early_table.sets[position].insert(state);
-            }
-            if early_table.sets[position].len() == old_size {
-                break;
-            }
+        }
+
+        for state in to_add {
+            early_table.sets[k].insert(state);
         }
     }
+
+    fn scan(&self, early_table: &mut EarleyTable<'a>, k: usize, next_char: char) {
+        let mut to_add = Vec::new();
+
+        for state in early_table.sets[k].iter() {
+            if state.is_finished() {
+                continue;
+            }
+
+            let dot = state.dot;
+            let current_token = state.rule.to[dot];
+
+            let terminal = match current_token {
+                Token::NT(_) => continue,
+                Token::T(t) => t,
+            };
+
+            if terminal.content != next_char {
+                continue;
+            }
+
+            let new_state = EarleyState::new(state.rule.clone(), state.dot + 1, state.origin);
+
+            to_add.push(new_state);
+        }
+
+        for state in to_add {
+            early_table.sets[k + 1].insert(state);
+        }
+    }
+
     pub fn parse(&self, s: &str) {
         let mut table = EarleyTable::new(s.len() + 1);
 
@@ -74,9 +115,18 @@ impl<'a> Grammar<'a> {
             }
         }
 
-        for position in 0..s.len() {
-            self.prediction(&mut table, position);
-            break;
+        for (position, c) in s.chars().enumerate() {
+            // Repeat prediction, scan, completion until no new states
+            // can be added to the current set.
+            loop {
+                let old_size = table.sets[position].len();
+                self.prediction(&mut table, position);
+                self.scan(&mut table, position, c);
+
+                if table.sets[position].len() == old_size {
+                    break;
+                }
+            }
         }
         println!("Early table:");
         println!("{}", table);

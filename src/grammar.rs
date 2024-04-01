@@ -3,24 +3,27 @@ use std::collections::HashMap;
 use std::fmt;
 use std::io;
 
-#[derive(Copy, Clone)]
+mod parser;
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 struct NonTerminal<'a> {
     name: &'a str,
 }
 
-#[derive(Copy, Clone, Debug)]
-struct Terminal<'a> {
-    name: &'a str,
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+struct Terminal {
+    content: char,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
 enum Token<'a> {
     NT(NonTerminal<'a>),
-    T(Terminal<'a>),
+    T(Terminal),
 }
 
 /// A production rule is a pair (from, to) where from is a nonterminal
 /// and to is a string of terminals/nonterminals.
+#[derive(Clone, Hash, Eq, PartialEq)]
 struct Rule<'a> {
     from: NonTerminal<'a>,
     to: Vec<Token<'a>>,
@@ -29,7 +32,7 @@ struct Rule<'a> {
 /// A context free grammar.
 pub struct Grammar<'a> {
     nonterminals: HashMap<&'a str, NonTerminal<'a>>,
-    terminals: HashMap<&'a str, Terminal<'a>>,
+    terminals: HashMap<&'a str, Terminal>,
     rules: Vec<Rule<'a>>,
     start: NonTerminal<'a>,
 }
@@ -89,7 +92,9 @@ impl<'a> Grammar<'a> {
             let mut to = Vec::new();
             for &word in &words[2..] {
                 if terminal_regex.is_match(word) {
-                    let terminal = Terminal { name: word };
+                    let terminal = Terminal {
+                        content: word.chars().next().unwrap(),
+                    };
                     terminals.entry(word).or_insert(terminal);
                     to.push(Token::T(terminal));
                 } else {
@@ -116,9 +121,9 @@ impl fmt::Display for NonTerminal<'_> {
     }
 }
 
-impl fmt::Display for Terminal<'_> {
+impl fmt::Display for Terminal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name)
+        write!(f, "{}", self.content)
     }
 }
 
