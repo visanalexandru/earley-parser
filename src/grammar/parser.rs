@@ -7,13 +7,13 @@ use std::collections::HashSet;
 /// - the position in the input at witch the matching began.
 #[derive(Hash, Eq, PartialEq)]
 struct EarleyState<'a> {
-    rule: Rule<'a>,
+    rule: &'a Rule<'a>,
     dot: usize,
     origin: usize,
 }
 
 impl<'a> EarleyState<'a> {
-    fn new(rule: Rule<'a>, dot: usize, origin: usize) -> Self {
+    fn new(rule: &'a Rule<'a>, dot: usize, origin: usize) -> Self {
         EarleyState { rule, dot, origin }
     }
 
@@ -46,7 +46,7 @@ impl<'a> EarleyTable<'a> {
 
 impl<'a> Grammar<'a> {
     /// For each state
-    fn prediction(&self, early_table: &mut EarleyTable<'a>, k: usize) {
+    fn prediction<'g>(&'g self, early_table: &mut EarleyTable<'g>, k: usize) {
         let mut to_add = Vec::new();
         for state in early_table.sets[k].iter() {
             if state.is_finished() {
@@ -62,7 +62,7 @@ impl<'a> Grammar<'a> {
 
             for rule in self.rules.iter() {
                 if rule.from == nonterminal {
-                    to_add.push(EarleyState::new(rule.clone(), 0, k));
+                    to_add.push(EarleyState::new(rule, 0, k));
                 }
             }
         }
@@ -91,11 +91,7 @@ impl<'a> Grammar<'a> {
                 continue;
             }
 
-            to_add.push(EarleyState::new(
-                state.rule.clone(),
-                state.dot + 1,
-                state.origin,
-            ));
+            to_add.push(EarleyState::new(state.rule, state.dot + 1, state.origin));
         }
 
         for state in to_add {
@@ -129,7 +125,7 @@ impl<'a> Grammar<'a> {
 
                 if nonterminal == current_nonterminal {
                     to_add.push(EarleyState::new(
-                        old_state.rule.clone(),
+                        old_state.rule,
                         old_state.dot + 1,
                         old_state.origin,
                     ));
@@ -148,7 +144,7 @@ impl<'a> Grammar<'a> {
         for rule in self.rules.iter() {
             if rule.from == self.start {
                 let new_state = EarleyState {
-                    rule: rule.clone(),
+                    rule,
                     origin: 0,
                     dot: 0,
                 };
