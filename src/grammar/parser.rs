@@ -212,20 +212,17 @@ impl<'a> Grammar<'a> {
 
 impl fmt::Display for EarleyState<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Rule: {}, Dot: {}, Origin: {}",
-            self.rule, self.dot, self.origin
-        )?;
-
-        if !self.children.is_empty() {
-            write!(f, ", Children: ")?;
-            for child in self.children.iter() {
-                write!(f, "[{}]", child)?;
+        write!(f, "Rule: {} -> ", self.rule.from)?;
+        for (index, token) in self.rule.to.iter().enumerate() {
+            if index == self.dot {
+                write!(f, ".")?;
             }
+            write!(f, "{}", token)?;
         }
-
-        Ok(())
+        if self.dot == self.rule.to.len() {
+            write!(f, ".")?;
+        }
+        write!(f, "  Origin: {}, Dot: {}", self.origin, self.dot)
     }
 }
 
