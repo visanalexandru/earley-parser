@@ -1,7 +1,5 @@
-P
-P -> S
-S -> S + M
-S -> M
-M -> M * T 
-M -> T 
-T -> n 
+TERM
+TERM -> FACTOR 
+TERM -> FACTOR + TERM 
+FACTOR -> n 
+FACTOR -> n * FACTOR

@@ -1,20 +1,47 @@
 use super::*;
+use std::cmp::{Eq, PartialEq};
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 
 /// Each state consists of:
 /// - the production currently being matched
 /// - the current position in that production
 /// - the position in the input at witch the matching began.
-#[derive(Hash, Eq, PartialEq)]
+#[derive(Eq)]
 struct EarleyState<'a> {
     rule: &'a Rule<'a>,
     dot: usize,
     origin: usize,
+    children: Vec<Rc<EarleyState<'a>>>,
+}
+
+/// Implement the PartialEq for the EarleyState.
+/// Ignore children.
+impl<'a> PartialEq for EarleyState<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        return self.rule == other.rule && self.dot == other.dot && self.origin == other.origin;
+    }
+}
+
+/// Implement the Hash trait for the EarleyState.
+/// Ignore children.
+impl<'a> Hash for EarleyState<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.rule.hash(state);
+        self.dot.hash(state);
+        self.origin.hash(state);
+    }
 }
 
 impl<'a> EarleyState<'a> {
     fn new(rule: &'a Rule<'a>, dot: usize, origin: usize) -> Self {
-        EarleyState { rule, dot, origin }
+        EarleyState {
+            rule,
+            dot,
+            origin,
+            children: Vec::new(),
+        }
     }
 
     /// A state is finished if the dot is at the end of the production.
@@ -31,7 +58,7 @@ impl<'a> EarleyState<'a> {
 /// of the word to recognize.
 /// Each set i holds the states at position i.
 struct EarleyTable<'a> {
-    sets: Vec<HashSet<EarleyState<'a>>>,
+    sets: Vec<HashSet<Rc<EarleyState<'a>>>>,
 }
 
 impl<'a> EarleyTable<'a> {
@@ -62,7 +89,7 @@ impl<'a> Grammar<'a> {
 
             for rule in self.rules.iter() {
                 if rule.from == nonterminal {
-                    to_add.push(EarleyState::new(rule, 0, k));
+                    to_add.push(Rc::new(EarleyState::new(rule, 0, k)));
                 }
             }
         }
@@ -91,7 +118,12 @@ impl<'a> Grammar<'a> {
                 continue;
             }
 
-            to_add.push(EarleyState::new(state.rule, state.dot + 1, state.origin));
+            to_add.push(Rc::new(EarleyState {
+                rule: state.rule,
+                dot: state.dot + 1,
+                origin: state.origin,
+                children: state.children.clone(),
+            }));
         }
 
         for state in to_add {
@@ -124,11 +156,15 @@ impl<'a> Grammar<'a> {
                 };
 
                 if nonterminal == current_nonterminal {
-                    to_add.push(EarleyState::new(
-                        old_state.rule,
-                        old_state.dot + 1,
-                        old_state.origin,
-                    ));
+                    let mut new_children_list = old_state.children.clone();
+                    new_children_list.push(state.clone());
+
+                    to_add.push(Rc::new(EarleyState {
+                        rule: old_state.rule,
+                        dot: old_state.dot + 1,
+                        origin: old_state.origin,
+                        children: new_children_list,
+                    }));
                 }
             }
         }
@@ -143,12 +179,7 @@ impl<'a> Grammar<'a> {
         // Add the starting rules.
         for rule in self.rules.iter() {
             if rule.from == self.start {
-                let new_state = EarleyState {
-                    rule,
-                    origin: 0,
-                    dot: 0,
-                };
-                table.sets[0].insert(new_state);
+                table.sets[0].insert(Rc::new(EarleyState::new(rule, 0, 0)));
             }
         }
 
@@ -180,6 +211,12 @@ impl<'a> Grammar<'a> {
 
         println!("Earley table:");
         println!("{}", table);
+
+        for state in table.sets[last].iter() {
+            if state.rule.from == self.start && state.is_finished() && state.origin == 0 {
+                println!("Solution: {}", state);
+            }
+        }
     }
 }
 
@@ -189,7 +226,16 @@ impl fmt::Display for EarleyState<'_> {
             f,
             "Rule: {}, Dot: {}, Origin: {}",
             self.rule, self.dot, self.origin
-        )
+        )?;
+
+        if !self.children.is_empty() {
+            write!(f, ", Children: ")?;
+            for child in self.children.iter() {
+                write!(f, "[{}]", child)?;
+            }
+        }
+
+        Ok(())
     }
 }
 
