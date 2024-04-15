@@ -54,7 +54,7 @@ impl From<io::Error> for ParseError {
     }
 }
 
-const TERMINAL_REGEX: &'static str = r"[a-z+\-\*0-9\(\)\\\/]";
+const TERMINAL_REGEX: &'static str = r"[a-z+\-\*0-9\(\)/]";
 const NONTERMINAL_REGEX: &'static str = r"[A-Z]+";
 const RULE_REGEX: &'static str = const_format::formatcp!(
     r"^{}\s+->(\s+({}|{}))*$",
@@ -68,7 +68,7 @@ impl<'a> Grammar<'a> {
     pub fn from_rules(grammar: &'a str) -> Result<Self, ParseError> {
         let rule_regex = Regex::new(RULE_REGEX).unwrap();
         let terminal_regex = Regex::new(TERMINAL_REGEX).unwrap();
-        let nonterminal_regex = Regex::new(NONTERMINAL_REGEX).unwrap();
+        let first_line_regex = Regex::new(&format!(r"^{}$", NONTERMINAL_REGEX)).unwrap();
 
         let mut terminals = HashMap::new();
         let mut nonterminals = HashMap::new();
@@ -77,7 +77,7 @@ impl<'a> Grammar<'a> {
         // Read the first line to get the start nonterminal.
         let mut lines = grammar.lines();
         let first_line = lines.next().ok_or(ParseError::MissingStart)?.trim();
-        if !nonterminal_regex.is_match(first_line) {
+        if !first_line_regex.is_match(first_line) {
             return Err(ParseError::InvalidStart);
         }
         let start = NonTerminal { name: first_line };
