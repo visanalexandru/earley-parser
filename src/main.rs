@@ -7,10 +7,13 @@ fn main() {
     println!("{}", grammar);
     println!();
 
-    let trees = grammar.parse("aaa"); //3
+    let trees = grammar.parse("(n+n+(n*n)-n/n)");
+    println!("Got {} derivation trees", trees.len());
+
     for tree in trees {
         let mut to = String::new();
         write_tree_to_dot(&mut to, &tree).unwrap();
         println!("{}", to);
+        println!();
     }
 }
