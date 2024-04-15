@@ -4,6 +4,10 @@ use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
+mod parse_tree;
+pub use parse_tree::write_tree_to_dot;
+pub use parse_tree::ParseNode;
+
 /// Each state consists of:
 /// - the production currently being matched
 /// - the current position in that production
@@ -173,7 +177,7 @@ impl<'a> Grammar<'a> {
         }
     }
 
-    pub fn parse(&self, s: &str) {
+    pub fn parse(&self, s: &str) -> Option<Rc<ParseNode>> {
         let mut table = EarleyTable::new(s.len() + 1);
 
         // Add the starting rules.
@@ -214,9 +218,11 @@ impl<'a> Grammar<'a> {
 
         for state in table.sets[last].iter() {
             if state.rule.from == self.start && state.is_finished() && state.origin == 0 {
-                println!("Solution: {}", state);
+                let parse_tree = parse_tree::build_parse_tree(&state);
+                return Some(parse_tree);
             }
         }
+        None
     }
 }
 

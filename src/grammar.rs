@@ -5,19 +5,21 @@ use std::fmt;
 use std::io;
 
 mod parser;
+pub use parser::write_tree_to_dot;
+pub use parser::ParseNode;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
-struct NonTerminal<'a> {
+pub struct NonTerminal<'a> {
     name: &'a str,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-struct Terminal {
+pub struct Terminal {
     content: char,
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
-enum Token<'a> {
+pub enum Token<'a> {
     NT(NonTerminal<'a>),
     T(Terminal),
 }

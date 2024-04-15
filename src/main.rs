@@ -1,4 +1,4 @@
-use earley_parser::grammar::Grammar;
+use earley_parser::grammar::{write_tree_to_dot, Grammar};
 use std::fs;
 
 fn main() {
@@ -6,9 +6,8 @@ fn main() {
     let grammar = Grammar::from_rules(&rules).unwrap();
     println!("{}", grammar);
     println!();
-    // grammar.parse("n+n*n");
-    // grammar.parse("n+n"); //1
-    // grammar.parse("acb"); //2
-    // grammar.parse("aacbb"); //2
-    grammar.parse("n+n*n+n+n*n"); //3
+    let parse_tree = grammar.parse("n+n*n+n+n*n").unwrap(); //3
+    let mut to = String::new();
+    write_tree_to_dot(&mut to, &parse_tree).unwrap();
+    println!("{}", to);
 }
