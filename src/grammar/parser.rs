@@ -1,7 +1,7 @@
 use super::*;
 use std::cmp::{Eq, PartialEq};
 use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::rc::Rc;
 
 mod parse_tree;
@@ -12,30 +12,12 @@ pub use parse_tree::ParseNode;
 /// - the production currently being matched
 /// - the current position in that production
 /// - the position in the input at witch the matching began.
-#[derive(Eq)]
+#[derive(Eq, PartialEq, Hash)]
 struct EarleyState<'a> {
     rule: &'a Rule<'a>,
     dot: usize,
     origin: usize,
     children: Vec<Rc<EarleyState<'a>>>,
-}
-
-/// Implement the PartialEq for the EarleyState.
-/// Ignore children.
-impl<'a> PartialEq for EarleyState<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        return self.rule == other.rule && self.dot == other.dot && self.origin == other.origin;
-    }
-}
-
-/// Implement the Hash trait for the EarleyState.
-/// Ignore children.
-impl<'a> Hash for EarleyState<'a> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.rule.hash(state);
-        self.dot.hash(state);
-        self.origin.hash(state);
-    }
 }
 
 impl<'a> EarleyState<'a> {
@@ -177,7 +159,7 @@ impl<'a> Grammar<'a> {
         }
     }
 
-    pub fn parse(&self, s: &str) -> Option<Rc<ParseNode>> {
+    pub fn parse(&self, s: &str) -> Vec<Rc<ParseNode>> {
         let mut table = EarleyTable::new(s.len() + 1);
 
         // Add the starting rules.
@@ -216,13 +198,15 @@ impl<'a> Grammar<'a> {
         println!("Earley table:");
         println!("{}", table);
 
+        let mut result = Vec::new();
+
         for state in table.sets[last].iter() {
             if state.rule.from == self.start && state.is_finished() && state.origin == 0 {
-                let parse_tree = parse_tree::build_parse_tree(&state);
-                return Some(parse_tree);
+                let tree = parse_tree::build_parse_tree(&state);
+                result.push(tree)
             }
         }
-        None
+        result
     }
 }
 

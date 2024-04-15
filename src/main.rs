@@ -6,8 +6,11 @@ fn main() {
     let grammar = Grammar::from_rules(&rules).unwrap();
     println!("{}", grammar);
     println!();
-    let parse_tree = grammar.parse("n+n*n+n+n*n").unwrap(); //3
-    let mut to = String::new();
-    write_tree_to_dot(&mut to, &parse_tree).unwrap();
-    println!("{}", to);
+
+    let trees = grammar.parse("aaa"); //3
+    for tree in trees {
+        let mut to = String::new();
+        write_tree_to_dot(&mut to, &tree).unwrap();
+        println!("{}", to);
+    }
 }
