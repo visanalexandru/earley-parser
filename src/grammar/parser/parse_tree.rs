@@ -74,10 +74,7 @@ where
     to.write_str("}")
 }
 
-pub fn render_tree<'a, W>(root: &ParseNode<'a>, path: &str) -> io::Result<()>
-where
-    W: fmt::Write,
-{
+pub fn render_tree<'a>(root: &ParseNode<'a>, path: &str) -> io::Result<()> {
     let mut dot = String::new();
     write_tree_to_dot(&mut dot, root).unwrap();
 

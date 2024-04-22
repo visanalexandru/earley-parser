@@ -1,5 +1,4 @@
-pub use earley_parser::grammar::parser::parse_tree::render_tree;
-use earley_parser::grammar::{write_tree_to_dot, Grammar};
+use earley_parser::grammar::{render_tree, write_tree_to_dot, Grammar};
 use std::fs;
 fn main() {
     let rules = fs::read_to_string("grammar-expression").unwrap();
@@ -14,6 +13,6 @@ fn main() {
         let mut to = String::new();
         write_tree_to_dot(&mut to, &tree).unwrap();
         let path = format!("tree_{}.svg", index);
-        render_tree(&tree, &path)?;
+        render_tree(&tree, &path).unwrap();
     }
 }
