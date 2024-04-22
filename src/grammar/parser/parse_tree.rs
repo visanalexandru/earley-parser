@@ -50,18 +50,29 @@ where
     W: fmt::Write,
 {
     let mut children_ids = Vec::new();
-    for child in node.children.iter() {
-        children_ids.push(write_subtree_to_dot(to, child, current_id)?);
+
+    // If we got a nonterminal with an empty list of children, it's a lambda production.
+    if node.children.is_empty() {
+        if let Token::NT(_) = node.token {
+            to.write_str(&format!("{} [label=\"{}\"]\n", *current_id, "\u{03BB}"))?;
+            children_ids.push(*current_id);
+            *current_id += 1;
+        }
+    } else {
+        for child in node.children.iter() {
+            children_ids.push(write_subtree_to_dot(to, child, current_id)?);
+        }
     }
+
+    let our_id = *current_id;
     *current_id += 1;
 
-    to.write_str(&format!("{} [label=\"{}\"]\n", *current_id, node.token))?;
-
+    to.write_str(&format!("{} [label=\"{}\"]\n", our_id, node.token))?;
     for id in children_ids {
-        to.write_str(&format!("{} -> {}\n", *current_id, id))?;
+        to.write_str(&format!("{} -> {}\n", our_id, id))?;
     }
 
-    Ok(*current_id)
+    Ok(our_id)
 }
 
 pub fn write_tree_to_dot<'a, W>(to: &mut W, root: &ParseNode<'a>) -> Result<(), fmt::Error>
