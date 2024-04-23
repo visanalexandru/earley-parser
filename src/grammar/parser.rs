@@ -239,3 +239,222 @@ impl fmt::Display for EarleyTable<'_> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    // Gets the string from the derivation by collecting the leaf nodes.
+    fn evaluate_parse_tree<'a>(root: &ParseNode<'a>) -> String {
+        if let Token::T(_) = root.token {
+            format!("{}", root.token)
+        } else {
+            let mut result = String::new();
+            for child in root.children.iter() {
+                result.push_str(&evaluate_parse_tree(&child));
+            }
+            result
+        }
+    }
+
+    #[test]
+    fn test_expression_grammar() {
+        let grammar_string = "EXP
+        EXP -> EXP + EXP
+        EXP -> EXP * EXP
+        EXP -> EXP - EXP
+        EXP -> EXP / EXP
+        EXP -> ( EXP )
+        EXP -> n";
+        let grammar = Grammar::from_rules(&grammar_string).unwrap();
+
+        let trees = grammar.parse("(n+n+(n*n)-n/n)");
+        assert_eq!(trees.len(), 14);
+        trees
+            .iter()
+            .for_each(|root| assert_eq!(evaluate_parse_tree(root), "(n+n+(n*n)-n/n)"));
+
+        let trees = grammar.parse("n*n+n+(n+(n*n+(n)-n-(n-((n)))))");
+        assert_eq!(trees.len(), 70);
+        trees.iter().for_each(|root| {
+            assert_eq!(evaluate_parse_tree(root), "n*n+n+(n+(n*n+(n)-n-(n-((n)))))")
+        });
+
+        let trees = grammar.parse("((n)+n-)");
+        assert_eq!(trees.len(), 0);
+
+        let trees = grammar.parse("(((n)*(((n)+(((n)))))))");
+        assert_eq!(trees.len(), 1);
+        assert_eq!(evaluate_parse_tree(&trees[0]), "(((n)*(((n)+(((n)))))))");
+    }
+
+    #[test]
+    fn test_palindrome_grammar() {
+        let grammar_string = "S
+        S -> a S a
+        S -> b S b 
+        S ->
+        S -> a
+        S -> b";
+        let grammar = Grammar::from_rules(&grammar_string).unwrap();
+
+        let trees = grammar.parse("abba");
+        assert_eq!(trees.len(), 1);
+        assert_eq!(evaluate_parse_tree(&trees[0]), "abba");
+
+        let trees = grammar.parse("aabab");
+        assert_eq!(trees.len(), 0);
+
+        let trees = grammar.parse("aabaa");
+        assert_eq!(trees.len(), 1);
+        assert_eq!(evaluate_parse_tree(&trees[0]), "aabaa");
+    }
+
+    #[test]
+    fn test_paranthesis_grammar() {
+        let grammar_string = "S
+        S -> ( S ) S
+        S -> ";
+        let grammar = Grammar::from_rules(&grammar_string).unwrap();
+
+        let trees = grammar.parse("(()()((()())))");
+        assert_eq!(trees.len(), 1);
+        assert_eq!(evaluate_parse_tree(&trees[0]), "(()()((()())))");
+
+        let trees = grammar.parse("(()(())()((()())))()()");
+        assert_eq!(trees.len(), 1);
+        assert_eq!(evaluate_parse_tree(&trees[0]), "(()(())()((()())))()()");
+
+        let trees = grammar.parse("(()(()))((()())))()()");
+        assert_eq!(trees.len(), 0);
+    }
+
+    #[test]
+    fn test_grammar_ab() {
+        let grammar_string = "S
+        S -> A B 
+        S -> B 
+        A -> B A 
+        A -> a 
+        B -> A
+        B -> b";
+        let grammar = Grammar::from_rules(&grammar_string).unwrap();
+
+        let trees = grammar.parse("bab");
+        assert_eq!(trees.len(), 1);
+        assert_eq!(evaluate_parse_tree(&trees[0]), "bab");
+    }
+
+    #[test]
+    fn test_grammar_aa() {
+        let grammar_string = "S
+        S -> A A
+        A -> a A
+        A -> b
+        A -> a A
+        B -> b";
+        let grammar = Grammar::from_rules(&grammar_string).unwrap();
+
+        let trees = grammar.parse("bab");
+        assert_eq!(trees.len(), 1);
+        assert_eq!(evaluate_parse_tree(&trees[0]), "bab");
+    }
+
+    #[test]
+    fn test_grammar_lambda() {
+        let grammar_string = "S
+        S -> a b C d e
+        C -> D
+        D -> E
+        E -> ";
+        let grammar = Grammar::from_rules(&grammar_string).unwrap();
+
+        let trees = grammar.parse("abde");
+        assert_eq!(trees.len(), 1);
+        assert_eq!(evaluate_parse_tree(&trees[0]), "abde");
+    }
+
+    #[test]
+    fn test_grammar_many_derivations() {
+        let grammar_string = "S
+        S -> S S 
+        S -> a";
+        let grammar = Grammar::from_rules(&grammar_string).unwrap();
+
+        let trees = grammar.parse("aaaaaa");
+        assert_eq!(trees.len(), 42);
+        trees
+            .iter()
+            .for_each(|root| assert_eq!(evaluate_parse_tree(root), "aaaaaa"));
+
+        let trees = grammar.parse("aaaaaaa");
+        assert_eq!(trees.len(), 132);
+        trees
+            .iter()
+            .for_each(|root| assert_eq!(evaluate_parse_tree(root), "aaaaaaa"));
+    }
+
+    #[test]
+    fn test_grammar_empty() {
+        let grammar_string = "S";
+        let grammar = Grammar::from_rules(&grammar_string).unwrap();
+
+        let trees = grammar.parse("aaaaaa");
+        assert_eq!(trees.len(), 0);
+    }
+
+    #[test]
+    fn test_grammar_nlp() {
+        let grammar_string = "S
+        S -> NP VP
+        VP -> VP PP 
+        VP -> V NP 
+        VP -> V
+        PP -> P NP
+        NP -> DET N 
+        NP -> N 
+        NP -> PN 
+        NP -> DET A N
+        NP -> A NP
+        A -> ADV A 
+        A -> A A
+        ADV -> t o o 
+        ADV -> v e r y 
+        ADV -> q u i t e 
+        PN -> s h e
+        PN -> h e 
+        A -> f r e s h
+        A -> t a s t y
+        A -> s i l v e r
+        N -> f i s h
+        N -> f o r k 
+        N -> a p p l e
+        V -> e a t s 
+        DET -> a 
+        DET -> a n 
+        DET -> t h e 
+        P -> w i t h";
+
+        let grammar = Grammar::from_rules(&grammar_string).unwrap();
+
+        let sentences = vec![
+            "sheeats",
+            "sheeatsanapple",
+            "sheeatsfreshtastyapple",
+            "sheeatsafish",
+            "sheeatsafishwithafork",
+            "sheeatsafishwithasilverfork",
+            "sheeatsaquitefreshfishwithasilverfork",
+        ];
+
+        let num_trees = vec![1, 1, 2, 1, 1, 1, 1];
+
+        for (&sentence, &num_trees) in sentences.iter().zip(num_trees.iter()) {
+            let trees = grammar.parse(sentence);
+            assert_eq!(trees.len(), num_trees);
+            trees
+                .iter()
+                .for_each(|tree| assert_eq!(evaluate_parse_tree(tree), sentence));
+        }
+    }
+}
