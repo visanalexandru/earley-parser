@@ -32,3 +32,19 @@ It is shown that this method does not result in a cubic parser, so I would advis
 ## Limitations
 - As mentioned above, this parser is slow
 - It does not support cyclic grammars (which are bogus anyway). It will forever loop in the scan/predict/complete cycle because there is an infinite set of parse trees.
+
+
+## Building and running
+You will need `cargo` to build this project. Also, you need to install [dot](https://graphviz.org/download/), the graph visualization tool.
+
+After you install these dependencies, you can build the project:
+
+```console
+cargo build
+```
+
+Then run the program:
+
+```console
+cargo run
+```
