@@ -5,6 +5,7 @@ use std::hash::Hash;
 use std::rc::Rc;
 
 mod parse_tree;
+pub use parse_tree::render_tree;
 pub use parse_tree::write_tree_to_dot;
 pub use parse_tree::ParseNode;
 

@@ -5,6 +5,7 @@ use std::fmt;
 use std::io;
 
 mod parser;
+pub use parser::render_tree;
 pub use parser::write_tree_to_dot;
 pub use parser::ParseNode;
 

@@ -1,5 +1,9 @@
 use super::*;
-use std::fmt;
+use std::{
+    fmt,
+    io::{Error, ErrorKind, Write},
+    process::{Command, Stdio},
+};
 
 /// A parse node consists of a token and a list of child nodes.
 /// For leaf nodes, the token is a Terminal.
@@ -68,4 +72,30 @@ where
     let mut curr_id = 0;
     write_subtree_to_dot(to, root, &mut curr_id)?;
     to.write_str("}")
+}
+
+pub fn render_tree<'a>(root: &ParseNode<'a>, path: &str) -> io::Result<()> {
+    let mut dot = String::new();
+    write_tree_to_dot(&mut dot, root).unwrap();
+
+    let mut child = Command::new("dot")
+        .args(["-Tsvg", "-o", path])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::inherit())
+        .spawn()?;
+
+    let child_stdin = child.stdin.as_mut().expect("Failed to open stdin!");
+    write!(child_stdin, "{}", dot)?;
+
+    match child.wait()?.code() {
+        Some(0) => Ok(()),
+        Some(e) => Err(Error::new(
+            ErrorKind::Other,
+            format!("dot program returned error code {}", e),
+        )),
+        None => Err(Error::new(
+            ErrorKind::Other,
+            "dot program was killed by a signal",
+        )),
+    }
 }
